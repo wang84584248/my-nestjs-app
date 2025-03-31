@@ -19,13 +19,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // 检查API密钥是否存在
+    const apiKey = process.env.INFINI_AI_API_KEY;
+    if (!apiKey) {
+      console.error('API密钥未设置');
+      return NextResponse.json(
+        { error: 'API配置错误' },
+        { status: 500 }
+      );
+    }
+
     // 准备API请求
     const url = 'https://cloud.infini-ai.com/maas/v1/chat/completions';
     const options = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.INFINI_AI_API_KEY}`
+        Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: 'deepseek-v3',
@@ -33,19 +43,47 @@ export async function POST(request: Request) {
       })
     };
 
+    console.log('正在调用DeepSeek API...');
+    
     // 调用DeepSeek API
-    const response = await fetch(url, options);
+    let response;
+    try {
+      response = await fetch(url, options);
+    } catch (fetchError) {
+      console.error('API请求失败:', fetchError);
+      return NextResponse.json(
+        { error: 'API网络请求失败' },
+        { status: 500 }
+      );
+    }
     
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = await response.text();
+      }
+      
       console.error('DeepSeek API错误:', errorData);
       return NextResponse.json(
-        { error: '调用AI服务失败' },
+        { error: `调用AI服务失败: ${response.status} ${response.statusText}` },
         { status: response.status }
       );
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      console.error('API响应解析失败:', parseError);
+      return NextResponse.json(
+        { error: '无法解析API响应' },
+        { status: 500 }
+      );
+    }
+    
+    console.log('API响应:', data);
     
     // 确保有有效的响应
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {

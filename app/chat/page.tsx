@@ -148,24 +148,66 @@ export default function ChatPage() {
         content: userMessage.content
       });
       
-      // 调用生成API
-      const generateResponse = await fetch('/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: apiMessages,
-          chatId,
-          userId: 'guest'
-        }),
-      });
+      // 首先尝试调用生成API
+      let generateData;
+      let useMockApi = false;
       
-      if (!generateResponse.ok) {
-        throw new Error('生成响应失败');
+      try {
+        const generateResponse = await fetch('/api/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messages: apiMessages,
+            chatId,
+            userId: 'guest'
+          }),
+        });
+        
+        if (!generateResponse.ok) {
+          console.error('生成API错误:', generateResponse.status, generateResponse.statusText);
+          // 如果API调用失败，使用模拟API
+          useMockApi = true;
+        } else {
+          generateData = await generateResponse.json();
+        }
+      } catch (apiError) {
+        console.error('调用生成API失败:', apiError);
+        // 如果API调用异常，使用模拟API
+        useMockApi = true;
       }
       
-      const generateData = await generateResponse.json();
+      // 如果需要，回退到模拟API
+      if (useMockApi) {
+        console.log('使用模拟API...');
+        try {
+          const mockResponse = await fetch('/api/generate/mock', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messages: apiMessages,
+              chatId,
+              userId: 'guest'
+            }),
+          });
+          
+          if (!mockResponse.ok) {
+            throw new Error(`模拟API调用失败: ${mockResponse.status}`);
+          }
+          
+          generateData = await mockResponse.json();
+        } catch (mockError) {
+          console.error('模拟API调用失败:', mockError);
+          throw new Error('无法生成响应，请稍后重试');
+        }
+      }
+      
+      if (!generateData) {
+        throw new Error('未能获取有效响应');
+      }
       
       // 检查响应中是否有新创建的chatId
       if (generateData.chatId && !chatId) {
@@ -189,7 +231,16 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('发送消息失败:', error);
-      alert('发送消息失败，请重试');
+      alert(`发送消息失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      
+      // 在错误情况下，添加一个错误消息到UI
+      setMessages((prev) => [...prev, {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "抱歉，遇到了一些问题。请稍后再试。",
+        timestamp: new Date(),
+        chatId: currentChatId
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -251,6 +302,36 @@ export default function ChatPage() {
     }
   };
 
+  // 添加删除聊天的函数
+  const handleDeleteChat = async (e: React.MouseEvent, chatId: string) => {
+    e.stopPropagation(); // 阻止事件冒泡，防止触发选择聊天
+    
+    if (!confirm('确定要删除此对话吗？此操作不可恢复。')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/chats/${chatId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('删除聊天失败');
+      }
+      
+      // 从聊天历史中移除
+      setChatHistory(prev => prev.filter(chat => chat._id !== chatId));
+      
+      // 如果删除的是当前聊天，切换到新聊天
+      if (currentChatId === chatId) {
+        handleNewChat();
+      }
+    } catch (error) {
+      console.error('删除聊天失败:', error);
+      alert('删除聊天失败，请重试');
+    }
+  };
+
   const formatMessage = (content: string) => {
     return content.split('\n').map((line, i) => (
       <span key={i}>
@@ -286,13 +367,26 @@ export default function ChatPage() {
             <div 
               key={chat.id} 
               className={cn(
-                "p-2 hover:bg-zinc-800 rounded cursor-pointer",
+                "p-2 hover:bg-zinc-800 rounded cursor-pointer group flex justify-between items-start",
                 currentChatId === chat._id ? "bg-zinc-800" : ""
               )}
               onClick={() => handleLoadChat(chat._id)}
             >
-              <div className="text-zinc-400 text-xs">{chat.date}</div>
-              <div className="text-zinc-300 text-sm truncate">{chat.title}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-zinc-400 text-xs">{chat.date}</div>
+                <div className="text-zinc-300 text-sm truncate">{chat.title}</div>
+              </div>
+              <button
+                onClick={(e) => handleDeleteChat(e, chat._id)}
+                className="text-zinc-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                title="删除对话"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18"></path>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
             </div>
           ))}
         </div>

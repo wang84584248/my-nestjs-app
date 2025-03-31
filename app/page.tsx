@@ -22,12 +22,6 @@ export default function Home() {
               </Link>
             </Button>
             
-            <Button asChild className="bg-purple-600 hover:bg-purple-700 w-full">
-              <Link href="/api-test">
-                API 测试工具
-              </Link>
-            </Button>
-            
             <div className="bg-zinc-700 rounded-lg p-4 text-zinc-300">
               <h3 className="font-medium mb-2">界面特点：</h3>
               <ul className="list-disc pl-5 space-y-1">

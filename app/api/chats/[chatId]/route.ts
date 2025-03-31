@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Chat from '@/models/Chat';
+import Message from '@/models/Message';
 
 interface Params {
   params: { chatId: string };
@@ -74,6 +75,7 @@ export async function DELETE(request: Request, { params }: Params) {
     
     const { chatId } = params;
     
+    // 删除聊天会话
     const deletedChat = await Chat.findByIdAndDelete(chatId);
     
     if (!deletedChat) {
@@ -82,6 +84,9 @@ export async function DELETE(request: Request, { params }: Params) {
         { status: 404 }
       );
     }
+    
+    // 删除与该聊天相关的所有消息
+    await Message.deleteMany({ chatId });
     
     return NextResponse.json({ success: true });
   } catch (error) {
