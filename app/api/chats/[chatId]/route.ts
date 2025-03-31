@@ -1,17 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Chat from '@/models/Chat';
 import Message from '@/models/Message';
 
-interface Params {
-  params: { chatId: string };
-}
-
-export async function GET(request: Request, { params }: Params) {
+// GET请求处理
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { chatId: string } }
+) {
   try {
     await connectToDatabase();
     
-    const { chatId } = params;
+    const chatId = params.chatId;
     
     const chat = await Chat.findById(chatId);
     
@@ -32,11 +32,15 @@ export async function GET(request: Request, { params }: Params) {
   }
 }
 
-export async function PUT(request: Request, { params }: Params) {
+// PUT请求处理
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { chatId: string } }
+) {
   try {
     await connectToDatabase();
     
-    const { chatId } = params;
+    const chatId = params.chatId;
     const { title } = await request.json();
     
     if (!title) {
@@ -69,11 +73,15 @@ export async function PUT(request: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(request: Request, { params }: Params) {
+// DELETE请求处理
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { chatId: string } }
+) {
   try {
     await connectToDatabase();
     
-    const { chatId } = params;
+    const chatId = params.chatId;
     
     // 删除聊天会话
     const deletedChat = await Chat.findByIdAndDelete(chatId);

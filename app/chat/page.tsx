@@ -31,6 +31,9 @@ type ChatHistory = {
   date: string;
 };
 
+// 本地存储键名
+const LAST_CHAT_ID_KEY = "deepseek_last_chat_id";
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -55,14 +58,21 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 加载聊天历史
+  // 保存当前聊天ID到本地存储
+  useEffect(() => {
+    if (currentChatId) {
+      localStorage.setItem(LAST_CHAT_ID_KEY, currentChatId);
+    }
+  }, [currentChatId]);
+
+  // 加载聊天历史并尝试恢复上次的会话
   useEffect(() => {
     const fetchChatHistory = async () => {
       try {
         const response = await fetch('/api/chats');
         const data = await response.json();
         if (data.chats && Array.isArray(data.chats)) {
-          setChatHistory(data.chats.map((chat: any) => ({
+          const history = data.chats.map((chat: any) => ({
             _id: chat._id,
             id: chat._id,
             title: chat.title,
@@ -70,7 +80,20 @@ export default function ChatPage() {
               year: 'numeric',
               month: '2-digit'
             })
-          })));
+          }));
+          
+          setChatHistory(history);
+          
+          // 尝试恢复上次的会话
+          const lastChatId = localStorage.getItem(LAST_CHAT_ID_KEY);
+          
+          if (lastChatId && history.some((chat: ChatHistory) => chat._id === lastChatId)) {
+            // 如果找到上次的聊天ID，则加载它
+            handleLoadChat(lastChatId);
+          } else if (history.length > 0) {
+            // 如果没有找到上次的聊天ID但有聊天历史，加载最新的一个
+            handleLoadChat(history[0]._id);
+          }
         }
       } catch (error) {
         console.error('获取聊天历史失败:', error);
@@ -257,6 +280,7 @@ export default function ChatPage() {
   // 新建聊天
   const handleNewChat = () => {
     setCurrentChatId("");
+    localStorage.removeItem(LAST_CHAT_ID_KEY);
     setMessages([
       {
         id: "welcome",
@@ -276,7 +300,7 @@ export default function ChatPage() {
       const response = await fetch(`/api/messages?chatId=${chatId}`);
       const data = await response.json();
       
-      if (data.messages && Array.isArray(data.messages)) {
+      if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
         setMessages(data.messages.map((msg: any) => ({
           id: msg._id,
           role: msg.role,
@@ -324,6 +348,8 @@ export default function ChatPage() {
       
       // 如果删除的是当前聊天，切换到新聊天
       if (currentChatId === chatId) {
+        // 如果是当前聊天，从localStorage中移除
+        localStorage.removeItem(LAST_CHAT_ID_KEY);
         handleNewChat();
       }
     } catch (error) {
