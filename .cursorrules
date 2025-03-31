@@ -1,0 +1,12 @@
+tech stack:
+ - nextjs
+ - tailwindcss
+ - typescript
+ - shadcn/ui
+ - mongoDB
+
+ use app router
+ use shadcn components
+ mongoDB is located in lib/mongodb.tx use export default connectToDatabase to connect to the database
+ use INFINI_API_KEY to connect to call the INFINI API
+ use lucide-react for icons
