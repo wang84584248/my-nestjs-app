@@ -13,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Search, PenSquare, ChevronDown, Share, ThumbsUp, ThumbsDown, MessageSquare, Repeat, MoreHorizontal, Plus, Mic, SendHorizontal } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // 定义消息类型
 type Message = {
@@ -57,6 +58,7 @@ export default function ChatPage() {
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -106,6 +108,11 @@ export default function ChatPage() {
         }
       } catch (error) {
         console.error('获取聊天历史失败:', error);
+      } finally {
+        // 500ms后设置页面加载完成，提供更好的用户体验
+        setTimeout(() => {
+          setPageLoading(false);
+        }, 500);
       }
     };
     
@@ -501,6 +508,80 @@ export default function ChatPage() {
     ));
   };
 
+  // 渲染骨架屏组件
+  const renderSkeletons = () => (
+    <>
+      {/* 侧边栏骨架屏 */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-4 py-2 text-xs text-[#8286a5] font-medium">今天</div>
+        <div className="space-y-0.5 px-2">
+          {Array(3).fill(0).map((_, index) => (
+            <div key={`skeleton-sidebar-${index}`} className="px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-4 rounded-full" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="px-4 py-2 text-xs text-[#8286a5] font-medium mt-4">三月</div>
+        <div className="space-y-0.5 px-2">
+          {Array(2).fill(0).map((_, index) => (
+            <div key={`skeleton-sidebar-past-${index}`} className="px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-4 rounded-full" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+
+  // 消息骨架屏
+  const renderMessageSkeletons = () => (
+    <>
+      {/* 欢迎消息骨架屏 */}
+      <div className="mb-6 w-full max-w-3xl mx-auto">
+        <div className="flex gap-3">
+          <Skeleton className="h-8 w-8 rounded-md flex-shrink-0" />
+          <div className="flex-1">
+            <Skeleton className="h-4 w-20 mb-2" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </div>
+        </div>
+      </div>
+      {/* 用户消息骨架屏 */}
+      <div className="mb-6 w-full max-w-3xl mx-auto">
+        <div className="flex gap-3">
+          <Skeleton className="h-8 w-8 rounded-md flex-shrink-0" />
+          <div className="flex-1">
+            <Skeleton className="h-4 w-20 mb-2" />
+            <Skeleton className="h-12 w-4/5 rounded-xl" />
+          </div>
+        </div>
+      </div>
+      {/* 助手回复骨架屏 */}
+      <div className="mb-6 w-full max-w-3xl mx-auto">
+        <div className="flex gap-3">
+          <Skeleton className="h-8 w-8 rounded-md flex-shrink-0" />
+          <div className="flex-1">
+            <Skeleton className="h-4 w-20 mb-2" />
+            <Skeleton className="h-36 w-full rounded-xl" />
+            <div className="flex gap-1 mt-2">
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-screen bg-[#0d0f1d] text-white">
       {/* 侧边栏 */}
@@ -525,6 +606,7 @@ export default function ChatPage() {
           <Button 
             onClick={handleNewChat}
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium flex items-center gap-2 border-none"
+            disabled={pageLoading}
           >
             <Plus className="h-4 w-4" />
             新对话
@@ -532,65 +614,67 @@ export default function ChatPage() {
         </div>
         
         {/* 历史会话分组 */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="px-4 py-2 text-xs text-[#8286a5] font-medium">今天</div>
-          <div className="space-y-0.5 px-2">
-            {chatHistory.slice(0, 3).map(chat => (
-              <div 
-                key={chat.id} 
-                className={cn(
-                  "px-3 py-2 hover:bg-[#272940]/20 rounded-md cursor-pointer group flex justify-between items-start",
-                  currentChatId === chat._id ? "bg-[#272940]/30" : ""
-                )}
-                onClick={() => handleLoadChat(chat._id)}
-              >
-                <div className="flex-1 min-w-0 flex gap-2 items-center">
-                  <MessageSquare className="h-4 w-4 shrink-0 text-[#8286a5]" />
-                  <div className="text-[#e1e3f0] text-sm truncate">{chat.title}</div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => handleDeleteChat(e, chat._id)}
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 text-[#8286a5] hover:text-red-400 hover:bg-transparent rounded-md transition-opacity"
+        {pageLoading ? renderSkeletons() : (
+          <div className="flex-1 overflow-y-auto">
+            <div className="px-4 py-2 text-xs text-[#8286a5] font-medium">今天</div>
+            <div className="space-y-0.5 px-2">
+              {chatHistory.slice(0, 3).map(chat => (
+                <div 
+                  key={chat.id} 
+                  className={cn(
+                    "px-3 py-2 hover:bg-[#272940]/20 rounded-md cursor-pointer group flex justify-between items-start",
+                    currentChatId === chat._id ? "bg-[#272940]/30" : ""
+                  )}
+                  onClick={() => handleLoadChat(chat._id)}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                  </svg>
-                </Button>
-              </div>
-            ))}
-          </div>
-          
-          <div className="px-4 py-2 text-xs text-[#8286a5] font-medium mt-4">三月</div>
-          <div className="space-y-0.5 px-2">
-            {chatHistory.slice(3, 6).map(chat => (
-              <div 
-                key={chat.id} 
-                className={cn(
-                  "px-3 py-2 hover:bg-[#272940]/20 rounded-md cursor-pointer group flex justify-between items-start",
-                  currentChatId === chat._id ? "bg-[#272940]/30" : ""
-                )}
-                onClick={() => handleLoadChat(chat._id)}
-              >
-                <div className="flex-1 min-w-0 flex gap-2 items-center">
-                  <MessageSquare className="h-4 w-4 shrink-0 text-[#8286a5]" />
-                  <div className="text-[#e1e3f0] text-sm truncate">{chat.title}</div>
+                  <div className="flex-1 min-w-0 flex gap-2 items-center">
+                    <MessageSquare className="h-4 w-4 shrink-0 text-[#8286a5]" />
+                    <div className="text-[#e1e3f0] text-sm truncate">{chat.title}</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => handleDeleteChat(e, chat._id)}
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-[#8286a5] hover:text-red-400 hover:bg-transparent rounded-md transition-opacity"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                    </svg>
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => handleDeleteChat(e, chat._id)}
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 text-[#8286a5] hover:text-red-400 hover:bg-transparent rounded-md transition-opacity"
+              ))}
+            </div>
+            
+            <div className="px-4 py-2 text-xs text-[#8286a5] font-medium mt-4">三月</div>
+            <div className="space-y-0.5 px-2">
+              {chatHistory.slice(3, 6).map(chat => (
+                <div 
+                  key={chat.id} 
+                  className={cn(
+                    "px-3 py-2 hover:bg-[#272940]/20 rounded-md cursor-pointer group flex justify-between items-start",
+                    currentChatId === chat._id ? "bg-[#272940]/30" : ""
+                  )}
+                  onClick={() => handleLoadChat(chat._id)}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                  </svg>
-                </Button>
-              </div>
-            ))}
+                  <div className="flex-1 min-w-0 flex gap-2 items-center">
+                    <MessageSquare className="h-4 w-4 shrink-0 text-[#8286a5]" />
+                    <div className="text-[#e1e3f0] text-sm truncate">{chat.title}</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => handleDeleteChat(e, chat._id)}
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-[#8286a5] hover:text-red-400 hover:bg-transparent rounded-md transition-opacity"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                    </svg>
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
       
       {/* 主聊天区域 */}
@@ -644,69 +728,73 @@ export default function ChatPage() {
         
         {/* 消息列表 */}
         <div className="flex-1 overflow-y-auto py-4 px-4 md:px-20">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className="mb-6 w-full max-w-3xl mx-auto"
-            >
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 mt-1">
-                  {message.role === "assistant" ? (
-                    <div className="flex items-center justify-center h-8 w-8 rounded-md bg-indigo-600 text-white font-medium text-xs">DS</div>
-                  ) : (
-                    <div className="flex items-center justify-center h-8 w-8 rounded-md bg-purple-600/30 text-purple-300 font-medium text-xs">U</div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="text-[#8286a5] text-sm mb-1 flex items-center">
-                    {message.role === "assistant" ? "DeepSeek" : "用户"}
-                    {message.role === "user" && (
-                      <span className="text-xs text-[#8286a5]/70 ml-2 font-normal">
-                        {new Date(message.timestamp).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'})}
-                      </span>
-                    )}
-                  </div>
-                  <div className={cn(
-                    "py-3 px-4 rounded-xl",
-                    message.role === "assistant" 
-                      ? "bg-[#272940]/30 text-[#e1e3f0]" 
-                      : "bg-[#422e57]/30 text-[#e1e3f0]"
-                  )}>
-                    {loadingMessageId === message.id ? (
-                      streamingContent ? (
-                        formatMessage(streamingContent)
-                      ) : (
-                        <div className="inline-flex space-x-2">
-                          <div className="w-2 h-2 rounded-full bg-[#8286a5] animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                          <div className="w-2 h-2 rounded-full bg-[#8286a5] animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                          <div className="w-2 h-2 rounded-full bg-[#8286a5] animate-bounce" style={{ animationDelay: "300ms" }}></div>
-                        </div>
-                      )
+          {pageLoading ? (
+            renderMessageSkeletons()
+          ) : (
+            messages.map((message) => (
+              <div
+                key={message.id}
+                className="mb-6 w-full max-w-3xl mx-auto"
+              >
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 mt-1">
+                    {message.role === "assistant" ? (
+                      <div className="flex items-center justify-center h-8 w-8 rounded-md bg-indigo-600 text-white font-medium text-xs">DS</div>
                     ) : (
-                      formatMessage(message.content)
+                      <div className="flex items-center justify-center h-8 w-8 rounded-md bg-purple-600/30 text-purple-300 font-medium text-xs">U</div>
                     )}
                   </div>
-                  
-                  {message.role === "assistant" && message.id !== loadingMessageId && (
-                    <div className="flex items-center gap-1 mt-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20">
-                        <ThumbsUp className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20">
-                        <ThumbsDown className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20">
-                        <Repeat className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
+                  <div className="flex-1">
+                    <div className="text-[#8286a5] text-sm mb-1 flex items-center">
+                      {message.role === "assistant" ? "DeepSeek" : "用户"}
+                      {message.role === "user" && (
+                        <span className="text-xs text-[#8286a5]/70 ml-2 font-normal">
+                          {new Date(message.timestamp).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                      )}
                     </div>
-                  )}
+                    <div className={cn(
+                      "py-3 px-4 rounded-xl",
+                      message.role === "assistant" 
+                        ? "bg-[#272940]/30 text-[#e1e3f0]" 
+                        : "bg-[#422e57]/30 text-[#e1e3f0]"
+                    )}>
+                      {loadingMessageId === message.id ? (
+                        streamingContent ? (
+                          formatMessage(streamingContent)
+                        ) : (
+                          <div className="inline-flex space-x-2">
+                            <div className="w-2 h-2 rounded-full bg-[#8286a5] animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                            <div className="w-2 h-2 rounded-full bg-[#8286a5] animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                            <div className="w-2 h-2 rounded-full bg-[#8286a5] animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                          </div>
+                        )
+                      ) : (
+                        formatMessage(message.content)
+                      )}
+                    </div>
+                    
+                    {message.role === "assistant" && message.id !== loadingMessageId && (
+                      <div className="flex items-center gap-1 mt-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20">
+                          <ThumbsUp className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20">
+                          <ThumbsDown className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20">
+                          <Repeat className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
           <div ref={messagesEndRef} />
         </div>
         
@@ -723,23 +811,34 @@ export default function ChatPage() {
                   placeholder="输入问题..."
                   className="resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-white py-3 px-3 min-h-[60px] text-sm placeholder:text-[#8286a5]/70"
                   rows={1}
+                  disabled={pageLoading}
                 />
                 <div className="flex items-center justify-between px-3 py-2 border-t border-[#272940]/50">
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20"
+                      disabled={pageLoading}
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-md text-[#8286a5] hover:bg-[#272940]/20"
+                      disabled={pageLoading}
+                    >
                       <Mic className="h-4 w-4" />
                     </Button>
                     <Button
                       onClick={handleSendMessage}
-                      disabled={!inputValue.trim() || isLoading}
+                      disabled={!inputValue.trim() || isLoading || pageLoading}
                       className={cn(
                         "h-8 w-8 rounded-md flex items-center justify-center",
-                        inputValue.trim() 
+                        inputValue.trim() && !pageLoading
                           ? "bg-indigo-600 hover:bg-indigo-700 text-white" 
                           : "bg-[#272940]/40 text-[#8286a5]"
                       )}
